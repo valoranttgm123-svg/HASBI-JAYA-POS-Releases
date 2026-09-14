@@ -1,0 +1,76 @@
+name: Publish HASBI JAYA Mobile 1.2.11
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/publish-mobile-1.2.11.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      ARTIFACT_URL: 'https://sdmntprcentralus.oaiusercontent.com/files/00000000-3f60-81f5-a225-e8f47f0ffd4e/raw?se=2026-09-14T14%3A45%3A48Z&sp=r&sv=2026-02-06&sr=b&scid=edacdc28-c16a-514c-a74f-675cb54a14dd&skoid=fb469448-2cc9-41bd-a5a6-6e020952b47a&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-14T01%3A52%3A07Z&ske=2026-09-15T01%3A52%3A07Z&sks=b&skv=2026-02-06&sig=P3%2BDvSs8r/R5834ie/XxZRmp3qJUXWIZxRONGvfMds0%3D'
+      APK_SHA256: '583ea1a5d8d59d737fe60b302e53097604d37602d1a8b9c171b5e42b8cb7bbfc'
+      APK_SIZE: '26551312'
+      APK_NAME: 'HASBI-JAYA-POS-Mobile-v1.2.11+28-arm64.apk'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download signed build artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl --fail --location --retry 5 --retry-all-errors "$ARTIFACT_URL" -o mobile.zip
+          mkdir -p stage
+          unzip -q mobile.zip -d stage
+          test -f "stage/$APK_NAME"
+
+      - name: Verify APK checksum and size
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(stat -c%s "stage/$APK_NAME")" = "$APK_SIZE"
+          test "$(sha256sum "stage/$APK_NAME" | awk '{print $1}')" = "$APK_SHA256"
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          NOTES='Pembaruan wajib HASBI JAYA POS Mobile v1.2.11+28. Tampilan Mobile dirapikan dan dipercantik: spacing lebih lega, navigasi bawah responsif, kartu statistik adaptif, form panjang lebih nyaman, dialog dan bottom sheet lebih rapi, serta visual Material 3 lebih konsisten. Logika transaksi, stok, barcode, printing, laporan, offline queue, dan sinkronisasi Supabase tidak diubah. Flutter analyze dan seluruh 22 test lulus.'
+          gh release view mobile-v1.2.11 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || gh release create mobile-v1.2.11 --repo "$GITHUB_REPOSITORY" --title 'HASBI JAYA POS Mobile v1.2.11' --notes "$NOTES"
+          gh release upload mobile-v1.2.11 "stage/$APK_NAME#$APK_NAME" --repo "$GITHUB_REPOSITORY" --clobber
+          printf '%s  %s\n' "$APK_SHA256" "$APK_NAME" > stage/SHA256SUMS.txt
+          gh release upload mobile-v1.2.11 stage/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Activate Mobile Update Center manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/mobile-v1.2.11/HASBI-JAYA-POS-Mobile-v1.2.11%2B28-arm64.apk"
+          jq -n \
+            --arg download_url "$APK_URL" \
+            --arg sha256 "$APK_SHA256" \
+            --argjson file_size "$APK_SIZE" \
+            '{version_name:"1.2.11",version_code:28,min_supported_version_code:28,download_url:$download_url,sha256:$sha256,file_size:$file_size,force_update:true,release_notes:"Pembaruan wajib Mobile v1.2.11+28: UI lebih rapi, lega, responsif, dan modern tanpa mengubah logika bisnis inti."}' > mobile-latest.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mobile-latest.json
+          git diff --cached --quiet || git commit -m 'release(mobile): activate forced update 1.2.11+28'
+          git push
+
+      - name: Verify public release and manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          R=$(gh api repos/$GITHUB_REPOSITORY/releases/tags/mobile-v1.2.11)
+          echo "$R" | jq -e --arg d "sha256:$APK_SHA256" --arg n "$APK_NAME" '.draft==false and .prerelease==false and any(.assets[]; .name==$n and .digest==$d)' >/dev/null
+          jq -e '.version_name=="1.2.11" and .version_code==28 and .min_supported_version_code==28 and .force_update==true' mobile-latest.json >/dev/null
