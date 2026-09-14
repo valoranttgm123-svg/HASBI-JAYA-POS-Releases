@@ -1,0 +1,10 @@
+{
+  "version_name": "1.4.0",
+  "version_code": 1004000,
+  "min_supported_version_code": 1003000,
+  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/desktop-v1.4.0/HASBI-JAYA-Setup-1.4.0.exe",
+  "sha256": "93b7b6451370c692f21dcdb1874b12aa69d24fd5bb6a6e05ed0152b2fe205b18",
+  "file_size": 182639882,
+  "force_update": false,
+  "release_notes": "HASBI JAYA 1.4.0 menyelaraskan versi Desktop dan Mobile, menambahkan Electron sandbox, validasi origin IPC, CSP, blok navigasi/popup/webview asing, serta UI workspace modern tanpa mengubah alur transaksi dan sinkronisasi inti."
+}
