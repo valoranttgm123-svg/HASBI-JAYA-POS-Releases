@@ -1,10 +1,10 @@
 {
-  "version_name": "1.2.10",
-  "version_code": 27,
-  "min_supported_version_code": 27,
-  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/mobile-v1.2.10/HASBI-JAYA-POS-Mobile-v1.2.10%2B27-arm64.apk",
-  "sha256": "e9d554d8fa5afd0bf6367b5f99a39f5d991f3c1a59a4661b2b43efcb8c3caeb3",
-  "file_size": 26551300,
+  "version_name": "1.2.11",
+  "version_code": 28,
+  "min_supported_version_code": 28,
+  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/mobile-v1.2.11/HASBI-JAYA-POS-Mobile-v1.2.11%2B28-arm64.apk",
+  "sha256": "583ea1a5d8d59d737fe60b302e53097604d37602d1a8b9c171b5e42b8cb7bbfc",
+  "file_size": 26551312,
   "force_update": true,
-  "release_notes": "Pembaruan wajib ke HASBI JAYA POS Mobile v1.2.10+27. Modernisasi UI Material 3 dan bugfix integrasi Supabase."
+  "release_notes": "Pembaruan wajib Mobile v1.2.11+28: UI lebih rapi, lega, responsif, dan modern tanpa mengubah logika bisnis inti."
 }
