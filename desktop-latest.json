@@ -1,10 +1,10 @@
 {
-  "version_name": "1.4.0",
-  "version_code": 1004000,
+  "version_name": "1.3.1",
+  "version_code": 1003001,
   "min_supported_version_code": 1003000,
-  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/desktop-v1.4.0/HASBI-JAYA-Setup-1.4.0.exe",
-  "sha256": "93b7b6451370c692f21dcdb1874b12aa69d24fd5bb6a6e05ed0152b2fe205b18",
-  "file_size": 182639882,
+  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/desktop-v1.3.1/HASBI-JAYA-Setup-1.3.1.exe",
+  "sha256": "dc66cdea4dbee319d58aa810077b216913c343c04e713cfd365c1b2e74fed476",
+  "file_size": 184200817,
   "force_update": false,
-  "release_notes": "HASBI JAYA 1.4.0 menyelaraskan versi Desktop dan Mobile, menambahkan Electron sandbox, validasi origin IPC, CSP, blok navigasi/popup/webview asing, serta UI workspace modern tanpa mengubah alur transaksi dan sinkronisasi inti."
+  "release_notes": "Versi produksi stabil HASBI JAYA POS Desktop sebelum pembaruan UI berikutnya. Fitur kasir, sinkronisasi, barcode, stok, printer, login read-only, dan Pusat Update tetap aktif."
 }
