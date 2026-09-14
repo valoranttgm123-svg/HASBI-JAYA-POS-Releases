@@ -1,0 +1,32 @@
+name: Cleanup Wrong HASBI JAYA 1.4.0
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/cleanup-wrong-1.4.0.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove incorrect 1.4.0 releases and tags
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for tag in mobile-v1.4.0 desktop-v1.4.0; do
+            if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+            else
+              gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$tag" >/dev/null 2>&1 || true
+            fi
+          done
+          if gh release view mobile-v1.4.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 1; fi
+          if gh release view desktop-v1.4.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then exit 1; fi
+          echo 'Incorrect 1.4.0 releases removed.'
