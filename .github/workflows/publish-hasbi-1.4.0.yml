@@ -1,0 +1,107 @@
+name: Publish HASBI JAYA 1.4.0
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/publish-hasbi-1.4.0.yml
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-hasbi-1.4.0
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Verify staging and publish Mobile + Desktop
+    runs-on: ubuntu-latest
+    env:
+      STAGING_BASE: https://lxqwrwisohbnytktakrn.supabase.co/storage/v1/object/public/app-releases/staging/hasbi-1.4.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Wait for verified staging manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p stage/mobile stage/desktop
+          for attempt in $(seq 1 60); do
+            MOBILE_OK=0
+            DESKTOP_OK=0
+            if curl --fail --silent --show-error "$STAGING_BASE/mobile/manifest.json" -o stage/mobile/manifest.json; then
+              jq -e '.version_name == "1.4.0" and .version_code == 27 and (.parts | length) > 0' stage/mobile/manifest.json >/dev/null && MOBILE_OK=1
+            fi
+            if curl --fail --silent --show-error "$STAGING_BASE/desktop/manifest.json" -o stage/desktop/manifest.json; then
+              jq -e '.version_name == "1.4.0" and .version_code == 1004000 and (.parts | length) > 0' stage/desktop/manifest.json >/dev/null && DESKTOP_OK=1
+            fi
+            if [ "$MOBILE_OK" -eq 1 ] && [ "$DESKTOP_OK" -eq 1 ]; then
+              echo "Both staging manifests are ready."
+              exit 0
+            fi
+            echo "Staging not complete yet (attempt $attempt/60)."
+            sleep 20
+          done
+          echo "Timed out waiting for 1.4.0 staging manifests." >&2
+          exit 1
+
+      - name: Reconstruct and verify binaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          for CHANNEL in mobile desktop; do
+            MANIFEST="stage/$CHANNEL/manifest.json"
+            : > "stage/$CHANNEL/reconstructed.bin"
+            while IFS= read -r PART; do
+              test -n "$PART"
+              curl --fail --silent --show-error --retry 5 \
+                "$STAGING_BASE/$CHANNEL/$PART" \
+                -o "stage/$CHANNEL/$PART"
+              cat "stage/$CHANNEL/$PART" >> "stage/$CHANNEL/reconstructed.bin"
+            done < <(jq -r '.parts[]' "$MANIFEST")
+
+            EXPECTED_SHA=$(jq -r '.sha256 | ascii_downcase' "$MANIFEST")
+            ACTUAL_SHA=$(sha256sum "stage/$CHANNEL/reconstructed.bin" | awk '{print tolower($1)}')
+            test "$ACTUAL_SHA" = "$EXPECTED_SHA"
+
+            EXPECTED_SIZE=$(jq -r '.file_size' "$MANIFEST")
+            ACTUAL_SIZE=$(stat -c%s "stage/$CHANNEL/reconstructed.bin")
+            test "$ACTUAL_SIZE" = "$EXPECTED_SIZE"
+
+            ASSET_NAME=$(jq -r '.asset_name' "$MANIFEST")
+            test -n "$ASSET_NAME"
+            mv "stage/$CHANNEL/reconstructed.bin" "stage/$CHANNEL/$ASSET_NAME"
+            printf '%s  %s\n' "$ACTUAL_SHA" "$ASSET_NAME" > "stage/$CHANNEL/SHA256SUMS.txt"
+            echo "$CHANNEL verified: $ASSET_NAME ($ACTUAL_SIZE bytes, $ACTUAL_SHA)"
+          done
+
+      - name: Publish GitHub Releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for CHANNEL in mobile desktop; do
+            MANIFEST="stage/$CHANNEL/manifest.json"
+            TAG=$(jq -r '.tag' "$MANIFEST")
+            ASSET=$(jq -r '.asset_name' "$MANIFEST")
+            NOTES=$(jq -r '.release_notes' "$MANIFEST")
+            if [ "$CHANNEL" = "mobile" ]; then
+              TITLE="HASBI JAYA POS Mobile v1.4.0"
+            else
+              TITLE="HASBI JAYA POS Desktop v1.4.0"
+            fi
+
+            if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES"
+            fi
+            gh release upload "$TAG" "stage/$CHANNEL/$ASSET#$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$TAG" "stage/$CHANNEL/SHA256SUMS.txt#SHA256SUMS.txt" --repo "$GITHUB_REPOSITORY" --clobber
+
+            DOWNLOAD_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$ASSET"
+            curl --fail --silent --show-error --location --head "$DOWNLOAD_URL" >/dev/null
+            echo "$CHANNEL release live: $DOWNLOAD_URL"
+          done
