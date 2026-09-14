@@ -1,0 +1,26 @@
+name: Probe private source checkout
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/probe-private-source-checkout.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Try source checkout with repository GITHUB_TOKEN
+        uses: actions/checkout@v4
+        with:
+          repository: valoranttgm123-svg/HASBI-JAYA-POS-Mobile-Visibility-Private
+          ref: astra-hasbi-modernize-20260914
+          token: ${{ github.token }}
+          persist-credentials: false
+      - name: Confirm version only
+        run: |
+          test -f pubspec.yaml
+          grep '^version:' pubspec.yaml
