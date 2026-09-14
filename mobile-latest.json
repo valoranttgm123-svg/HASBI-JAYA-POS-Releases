@@ -1,10 +1,10 @@
 {
-  "version_name": "1.4.0",
-  "version_code": 27,
+  "version_name": "1.2.9",
+  "version_code": 26,
   "min_supported_version_code": 26,
-  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/mobile-v1.4.0/HASBI-JAYA-POS-Mobile-v1.4.0%2B27-arm64.apk",
-  "sha256": "6a678f01fa08165cfbb64ced7af3552d44d4a6bec290dc9da53e05a575dc67b4",
-  "file_size": 26551332,
+  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/mobile-v1.2.9/HASBI-JAYA-POS-Mobile-v1.2.9%2B26-arm64.apk",
+  "sha256": "a90ffbdf5f7f944868b7ca7aca7910a734571e5262e353455269d23d3c649c14",
+  "file_size": 26245596,
   "force_update": false,
-  "release_notes": "HASBI JAYA 1.4.0 menyelaraskan versi Mobile dan Desktop, menghadirkan UI Material 3 yang lebih modern, hardening Android, serta mempertahankan kasir, stok, barcode, printing, laporan, offline queue, dan sinkronisasi incremental."
+  "release_notes": "Versi produksi stabil HASBI JAYA POS Mobile sebelum pembaruan UI berikutnya. Sinkronisasi incremental dan cache offline tetap aktif."
 }
