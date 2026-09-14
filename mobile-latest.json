@@ -1,10 +1,10 @@
 {
-  "version_name": "1.2.9",
-  "version_code": 26,
+  "version_name": "1.2.10",
+  "version_code": 27,
   "min_supported_version_code": 26,
-  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/mobile-v1.2.9/HASBI-JAYA-POS-Mobile-v1.2.9%2B26-arm64.apk",
-  "sha256": "a90ffbdf5f7f944868b7ca7aca7910a734571e5262e353455269d23d3c649c14",
-  "file_size": 26245596,
+  "download_url": "https://github.com/valoranttgm123-svg/HASBI-JAYA-POS-Releases/releases/download/mobile-v1.2.10/HASBI-JAYA-POS-Mobile-v1.2.10%2B27-arm64.apk",
+  "sha256": "e9d554d8fa5afd0bf6367b5f99a39f5d991f3c1a59a4661b2b43efcb8c3caeb3",
+  "file_size": 26551300,
   "force_update": false,
-  "release_notes": "Versi produksi stabil HASBI JAYA POS Mobile sebelum pembaruan UI berikutnya. Sinkronisasi incremental dan cache offline tetap aktif."
+  "release_notes": "Modernisasi UI Material 3 yang lebih bersih dan nyaman digunakan tanpa mengubah alur bisnis inti."
 }
