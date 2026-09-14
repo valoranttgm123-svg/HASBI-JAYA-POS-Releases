@@ -2,10 +2,8 @@ name: Publish HASBI JAYA 1.4.0
 
 on:
   push:
-    branches:
-      - main
-    paths:
-      - .github/workflows/publish-hasbi-1.4.0.yml
+    branches: [main]
+    paths: ['.github/workflows/publish-hasbi-1.4.0.yml']
   workflow_dispatch:
 
 permissions:
@@ -17,66 +15,43 @@ concurrency:
 
 jobs:
   publish:
-    name: Verify staging and publish Mobile + Desktop
+    name: Verify and publish Mobile + Desktop 1.4.0
     runs-on: ubuntu-latest
     env:
-      STAGING_BASE: https://lxqwrwisohbnytktakrn.supabase.co/storage/v1/object/public/app-releases/staging/hasbi-1.4.0
+      MOBILE_ARTIFACT_URL: 'https://sdmntprindiasocentral.oaiusercontent.com/files/00000000-3b74-8211-bce9-bceed3679104/raw?se=2026-09-14T09%3A09%3A55Z&sp=r&sv=2026-02-06&sr=b&scid=866d5417-1996-5526-b17c-aabc8bd9f94c&skoid=fb469448-2cc9-41bd-a5a6-6e020952b47a&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-14T00%3A04%3A24Z&ske=2026-09-15T00%3A04%3A24Z&sks=b&skv=2026-02-06&sig=/o5XtHch0JwHZUXXq96fgwTJL%2B%2BImsdAN5zEXelYmdE%3D'
+      DESKTOP_ARTIFACT_URL: 'https://sdmntprjapaneast.oaiusercontent.com/files/00000000-6a10-8209-baaf-22630f1693b8/raw?se=2026-09-14T09%3A10%3A54Z&sp=r&sv=2026-02-06&sr=b&scid=27589a97-5830-5e79-bcdf-ca452fe2631c&skoid=fb469448-2cc9-41bd-a5a6-6e020952b47a&sktid=a48cca56-e6da-484e-a814-9c849652bcb3&skt=2026-09-14T02%3A53%3A09Z&ske=2026-09-15T02%3A53%3A09Z&sks=b&skv=2026-02-06&sig=zMTfsEpu9CkxMpTVE6qKjHIIzhOhulffGKBEoLxUpcI%3D'
+      MOBILE_SHA256: '6a678f01fa08165cfbb64ced7af3552d44d4a6bec290dc9da53e05a575dc67b4'
+      DESKTOP_SHA256: '93b7b6451370c692f21dcdb1874b12aa69d24fd5bb6a6e05ed0152b2fe205b18'
+      MOBILE_SIZE: '26551332'
+      DESKTOP_SIZE: '182639882'
     steps:
       - uses: actions/checkout@v4
 
-      - name: Wait for verified staging manifests
+      - name: Download verified build artifacts
         shell: bash
         run: |
           set -euo pipefail
+          curl --fail --location --retry 5 --retry-all-errors "$MOBILE_ARTIFACT_URL" -o mobile-artifact.zip
+          curl --fail --location --retry 5 --retry-all-errors "$DESKTOP_ARTIFACT_URL" -o desktop-artifact.zip
           mkdir -p stage/mobile stage/desktop
-          for attempt in $(seq 1 60); do
-            MOBILE_OK=0
-            DESKTOP_OK=0
-            if curl --fail --silent --show-error "$STAGING_BASE/mobile/manifest.json" -o stage/mobile/manifest.json; then
-              jq -e '.version_name == "1.4.0" and .version_code == 27 and (.parts | length) > 0' stage/mobile/manifest.json >/dev/null && MOBILE_OK=1
-            fi
-            if curl --fail --silent --show-error "$STAGING_BASE/desktop/manifest.json" -o stage/desktop/manifest.json; then
-              jq -e '.version_name == "1.4.0" and .version_code == 1004000 and (.parts | length) > 0' stage/desktop/manifest.json >/dev/null && DESKTOP_OK=1
-            fi
-            if [ "$MOBILE_OK" -eq 1 ] && [ "$DESKTOP_OK" -eq 1 ]; then
-              echo "Both staging manifests are ready."
-              exit 0
-            fi
-            echo "Staging not complete yet (attempt $attempt/60)."
-            sleep 20
-          done
-          echo "Timed out waiting for 1.4.0 staging manifests." >&2
-          exit 1
+          unzip -q mobile-artifact.zip -d stage/mobile
+          unzip -q desktop-artifact.zip -d stage/desktop
 
-      - name: Reconstruct and verify binaries
+      - name: Verify APK and EXE checksums
         shell: bash
         run: |
           set -euo pipefail
-          for CHANNEL in mobile desktop; do
-            MANIFEST="stage/$CHANNEL/manifest.json"
-            : > "stage/$CHANNEL/reconstructed.bin"
-            while IFS= read -r PART; do
-              test -n "$PART"
-              curl --fail --silent --show-error --retry 5 \
-                "$STAGING_BASE/$CHANNEL/$PART" \
-                -o "stage/$CHANNEL/$PART"
-              cat "stage/$CHANNEL/$PART" >> "stage/$CHANNEL/reconstructed.bin"
-            done < <(jq -r '.parts[]' "$MANIFEST")
-
-            EXPECTED_SHA=$(jq -r '.sha256 | ascii_downcase' "$MANIFEST")
-            ACTUAL_SHA=$(sha256sum "stage/$CHANNEL/reconstructed.bin" | awk '{print tolower($1)}')
-            test "$ACTUAL_SHA" = "$EXPECTED_SHA"
-
-            EXPECTED_SIZE=$(jq -r '.file_size' "$MANIFEST")
-            ACTUAL_SIZE=$(stat -c%s "stage/$CHANNEL/reconstructed.bin")
-            test "$ACTUAL_SIZE" = "$EXPECTED_SIZE"
-
-            ASSET_NAME=$(jq -r '.asset_name' "$MANIFEST")
-            test -n "$ASSET_NAME"
-            mv "stage/$CHANNEL/reconstructed.bin" "stage/$CHANNEL/$ASSET_NAME"
-            printf '%s  %s\n' "$ACTUAL_SHA" "$ASSET_NAME" > "stage/$CHANNEL/SHA256SUMS.txt"
-            echo "$CHANNEL verified: $ASSET_NAME ($ACTUAL_SIZE bytes, $ACTUAL_SHA)"
-          done
+          MOBILE_APK='stage/mobile/HASBI-JAYA-POS-Mobile-v1.4.0+27-arm64.apk'
+          DESKTOP_EXE='stage/desktop/desktop/release/HASBI-JAYA-Setup-1.4.0.exe'
+          test -f "$MOBILE_APK"
+          test -f "$DESKTOP_EXE"
+          test "$(stat -c%s "$MOBILE_APK")" = "$MOBILE_SIZE"
+          test "$(stat -c%s "$DESKTOP_EXE")" = "$DESKTOP_SIZE"
+          test "$(sha256sum "$MOBILE_APK" | awk '{print $1}')" = "$MOBILE_SHA256"
+          test "$(sha256sum "$DESKTOP_EXE" | awk '{print $1}')" = "$DESKTOP_SHA256"
+          grep -qi "$MOBILE_SHA256" stage/mobile/MOBILE-SHA256SUMS.txt
+          grep -qi "$DESKTOP_SHA256" stage/desktop/DESKTOP-SHA256SUMS.txt
+          echo "Mobile and Desktop binaries verified."
 
       - name: Publish GitHub Releases
         shell: bash
@@ -84,24 +59,49 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          for CHANNEL in mobile desktop; do
-            MANIFEST="stage/$CHANNEL/manifest.json"
-            TAG=$(jq -r '.tag' "$MANIFEST")
-            ASSET=$(jq -r '.asset_name' "$MANIFEST")
-            NOTES=$(jq -r '.release_notes' "$MANIFEST")
-            if [ "$CHANNEL" = "mobile" ]; then
-              TITLE="HASBI JAYA POS Mobile v1.4.0"
-            else
-              TITLE="HASBI JAYA POS Desktop v1.4.0"
-            fi
+          MOBILE_APK='stage/mobile/HASBI-JAYA-POS-Mobile-v1.4.0+27-arm64.apk'
+          DESKTOP_EXE='stage/desktop/desktop/release/HASBI-JAYA-Setup-1.4.0.exe'
+          MOBILE_NOTES=$(jq -r '.release_notes' stage/mobile/artifacts/mobile/mobile-release.json)
+          DESKTOP_NOTES=$(jq -r '.release_notes' stage/desktop/artifacts/desktop/desktop-release.json)
 
-            if ! gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-              gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "$TITLE" --notes "$NOTES"
-            fi
-            gh release upload "$TAG" "stage/$CHANNEL/$ASSET#$ASSET" --repo "$GITHUB_REPOSITORY" --clobber
-            gh release upload "$TAG" "stage/$CHANNEL/SHA256SUMS.txt#SHA256SUMS.txt" --repo "$GITHUB_REPOSITORY" --clobber
+          if ! gh release view mobile-v1.4.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create mobile-v1.4.0 --repo "$GITHUB_REPOSITORY" --title 'HASBI JAYA POS Mobile v1.4.0' --notes "$MOBILE_NOTES"
+          fi
+          gh release upload mobile-v1.4.0 "$MOBILE_APK#HASBI-JAYA-POS-Mobile-v1.4.0+27-arm64.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          cp stage/mobile/MOBILE-SHA256SUMS.txt stage/mobile/SHA256SUMS.txt
+          gh release upload mobile-v1.4.0 stage/mobile/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
 
-            DOWNLOAD_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/$TAG/$ASSET"
-            curl --fail --silent --show-error --location --head "$DOWNLOAD_URL" >/dev/null
-            echo "$CHANNEL release live: $DOWNLOAD_URL"
-          done
+          if ! gh release view desktop-v1.4.0 --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release create desktop-v1.4.0 --repo "$GITHUB_REPOSITORY" --title 'HASBI JAYA POS Desktop v1.4.0' --notes "$DESKTOP_NOTES"
+          fi
+          gh release upload desktop-v1.4.0 "$DESKTOP_EXE#HASBI-JAYA-Setup-1.4.0.exe" --repo "$GITHUB_REPOSITORY" --clobber
+          cp stage/desktop/DESKTOP-SHA256SUMS.txt stage/desktop/SHA256SUMS.txt
+          gh release upload desktop-v1.4.0 stage/desktop/SHA256SUMS.txt --repo "$GITHUB_REPOSITORY" --clobber
+
+      - name: Write latest manifests
+        shell: bash
+        run: |
+          set -euo pipefail
+          MOBILE_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/mobile-v1.4.0/HASBI-JAYA-POS-Mobile-v1.4.0%2B27-arm64.apk"
+          DESKTOP_URL="https://github.com/$GITHUB_REPOSITORY/releases/download/desktop-v1.4.0/HASBI-JAYA-Setup-1.4.0.exe"
+          jq -n --arg version_name '1.4.0' --argjson version_code 27 --argjson min_supported_version_code 26 --arg download_url "$MOBILE_URL" --arg sha256 "$MOBILE_SHA256" --argjson file_size "$MOBILE_SIZE" --argjson force_update false --arg release_notes "$(jq -r '.release_notes' stage/mobile/artifacts/mobile/mobile-release.json)" '{version_name:$version_name,version_code:$version_code,min_supported_version_code:$min_supported_version_code,download_url:$download_url,sha256:$sha256,file_size:$file_size,force_update:$force_update,release_notes:$release_notes}' > mobile-latest.json
+          jq -n --arg version_name '1.4.0' --argjson version_code 1004000 --argjson min_supported_version_code 1003000 --arg download_url "$DESKTOP_URL" --arg sha256 "$DESKTOP_SHA256" --argjson file_size "$DESKTOP_SIZE" --argjson force_update false --arg release_notes "$(jq -r '.release_notes' stage/desktop/artifacts/desktop/desktop-release.json)" '{version_name:$version_name,version_code:$version_code,min_supported_version_code:$min_supported_version_code,download_url:$download_url,sha256:$sha256,file_size:$file_size,force_update:$force_update,release_notes:$release_notes}' > desktop-latest.json
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add mobile-latest.json desktop-latest.json
+          git diff --cached --quiet || git commit -m 'release: point update center to HASBI JAYA 1.4.0'
+          git push
+
+      - name: Verify public releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          MOBILE_JSON=$(gh api repos/$GITHUB_REPOSITORY/releases/tags/mobile-v1.4.0)
+          DESKTOP_JSON=$(gh api repos/$GITHUB_REPOSITORY/releases/tags/desktop-v1.4.0)
+          echo "$MOBILE_JSON" | jq -e --arg sha "sha256:$MOBILE_SHA256" '.draft == false and .prerelease == false and any(.assets[]; .name == "HASBI-JAYA-POS-Mobile-v1.4.0+27-arm64.apk" and .digest == $sha)' >/dev/null
+          echo "$DESKTOP_JSON" | jq -e --arg sha "sha256:$DESKTOP_SHA256" '.draft == false and .prerelease == false and any(.assets[]; .name == "HASBI-JAYA-Setup-1.4.0.exe" and .digest == $sha)' >/dev/null
+          curl --fail --location --head "https://github.com/$GITHUB_REPOSITORY/releases/download/mobile-v1.4.0/HASBI-JAYA-POS-Mobile-v1.4.0%2B27-arm64.apk" >/dev/null
+          curl --fail --location --head "https://github.com/$GITHUB_REPOSITORY/releases/download/desktop-v1.4.0/HASBI-JAYA-Setup-1.4.0.exe" >/dev/null
+          echo 'HASBI JAYA 1.4.0 is live in GitHub Update Center.'
